@@ -1,2 +1,2 @@
 # Multi-Agent Test-Time Adaptation for Robust Medical Image-to-Image Translation
-[method_tta_v2.pdf](https://github.com/user-attachments/files/29059581/method_tta_v2.pdf)
+<img width="580" height="248" alt="Screenshot 2026-06-17 alle 19 17 39" src="https://github.com/user-attachments/assets/d5817c97-d972-4613-a4dd-a9c75b082986" />
