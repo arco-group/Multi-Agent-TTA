@@ -68,8 +68,3 @@ conda env create -f cyclegan/environment.yml
 
 Then add the dependencies required by `flow_matching/` in the same environment, or manage that branch in a separate environment if you prefer a cleaner split.
 
-## Notes
-
-- Hardcoded private filesystem paths have been removed from the public scripts.
-- The old `rec_model` naming is now exposed as `monitoring_agent` in the public options.
-- Files related to paired models, colorization, single-image testing, preprocessing, plotting, and statistical tests were removed from the public release.
