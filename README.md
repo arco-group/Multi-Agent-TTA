@@ -1,4 +1,17 @@
 # Multi-Agent TTA for 2D Medical Image Translation
+
+[Irene Iele](https://scholar.google.com/citations?user=srLH7lkAAAAJ&hl=it&oi=ao)<sup>1</sup>, 
+[Francesco Di Feola](https://scholar.google.com/citations?user=nzm0qagAAAAJ&hl=it)<sup>2</sup>, 
+[Paolo Soda](https://scholar.google.com/citations?user=E7rcYCQAAAAJ&hl=it&oi=ao)<sup>1,2</sup>, 
+[Rosa Sicilia](https://scholar.google.com/citations?user=d3yjHMMAAAAJ&hl=it&oi=ao)<sup>3</sup>,
+[Matteo Tortora](https://matteotortora.github.io)<sup>4</sup>
+
+<sup>1</sup>  University Campus Bio-Medico of Rome,
+<sup>2</sup>  Umeå University,
+<sup>4</sup> UniCamillus-Saint Camillus International University of
+Health Sciences
+<sup>4</sup>  University of Genoa
+</div>
 <img width="937" height="397" alt="method_tta_v2_page-0001" src="https://github.com/user-attachments/assets/ad22b910-aae6-40f9-9888-b11395210030" />
 
 Public release of the code used in the MICCAI 2026 paper on Multi-Agent Test-Time Adaptation for 2D Medical Image Translation.
