@@ -1,0 +1,17 @@
+**/__pycache__/
+*.pyc
+*.pyo
+*.out
+*.err
+*.log
+.pytest_cache/
+.ipynb_checkpoints/
+**/runs/
+**/output/
+**/error/
+**/web/
+**/*_rec_models/
+**/*_TTA/
+**/results/
+_MICCAI___2026____Extened_TTA.pdf
+*.DS_Store
