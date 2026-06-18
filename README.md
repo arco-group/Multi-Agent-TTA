@@ -8,7 +8,7 @@
 
 <sup>1</sup>  University Campus Bio-Medico of Rome,
 <sup>2</sup>  Umeå University,
-<sup>4</sup> UniCamillus-Saint Camillus International University of
+<sup>3</sup> UniCamillus-Saint Camillus International University of
 Health Sciences
 <sup>4</sup>  University of Genoa
 </div>
