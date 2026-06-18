@@ -1,7 +1,7 @@
 # Multi-Agent TTA for 2D Medical Image Translation
 <img width="937" height="397" alt="method_tta_v2_page-0001" src="https://github.com/user-attachments/assets/ad22b910-aae6-40f9-9888-b11395210030" />
 
-Public release of the code used in the MICCAI 2026 paper on multi-agent test-time adaptation.
+Public release of the code used in the MICCAI 2026 paper on Multi-Agent Test-Time Adaptation for 2D Medical Image Translation.
 
 This repository contains only the two models used in the paper:
 
