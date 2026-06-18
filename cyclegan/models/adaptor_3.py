@@ -161,7 +161,7 @@ class ANet(nn.Module):
                     break
         self.cuda()
 
-    def forward(self, batch, task_model, generator='pix2pix'):
+    def forward(self, batch, task_model, generator='cycle_gan'):
         """
         Forward for a 4-level UNet
         Args:
@@ -178,12 +178,10 @@ class ANet(nn.Module):
         outputs = {}  # Dizionario che conterrà i vari output richiesti
         outputs['input']= x # immagine adattata
         # Step 1: Reflection padding
-        if generator == 'pix2pix':
-            tm = task_model.netG
-        elif generator == 'cycle_gan':
+        if generator == 'cycle_gan':
             tm = task_model.netG_A
-        elif generator == 'cycle_gan_paired':
-            tm = task_model.netG_A
+        else:
+            raise ValueError(f"Unsupported generator '{generator}'. Expected 'cycle_gan'.")
         x = tm.module.model[0](x)
 
         # Step 2: First convolution
@@ -339,4 +337,3 @@ class ANet(nn.Module):
             else:
                 print(f"File {weight_path} not found")
                 break
-

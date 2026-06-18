@@ -23,7 +23,7 @@ from itertools import islice
 import re
 import time
 from models.adaptor_3 import DTTAnorm, ANet
-torch.manual_seed(0)  # garantisce la riproducibilità
+torch.manual_seed(0)  # Ensure reproducibility.
 torch.cuda.manual_seed(0)
 np.random.seed(0)
 from options.base_options import BaseOptions
@@ -33,60 +33,17 @@ from tqdm import tqdm
 from TTA_all_rec import TTA_all, TTA_rndm_50, compute_tnet_dim
 
 
-#torch.cuda.set_per_process_memory_fraction(0.33, 0)  # Limit to 30% of GPU 0
-
-
-thresholds = {
-    "pix2pix": {
-        "OASIS": {
-            "t1n_t2w": 0.0008,
-            "t1n_t2f": 0.0013,
-            "t2w_t2f": 0.0013
-        },
-        "UPENN": {
-            "t1n_t2w": 0.0008,
-            "t1n_t2f": 0.0017,
-            "t2w_t2f": 0.0016
-        },
-        "LDCT": {"LDCT_HDCT": 0.0057}
-    },
-    "cycle_gan": {
-        "OASIS": {
-            "t1n_t2w": 0.0014,
-            "t1n_t2f": 0.0019,
-            "t2w_t2f": 0.0021
-        },
-        #"LDCT": {"LDCT_HDCT": 0.0064},
-        #"LDCT": {"LDCT_HDCT": 0.0037},
-        "LDCT": {"LDCT_HDCT": 0.0},
-        #"BraTS": {"t1n_t2w": 0.0012},
-        "BraTS": {"t1n_t2w": 0.0},
-
-    },
-    "cycle_gan_paired": {
-        "OASIS": {
-            "t1n_t2w": 0.0014,
-            "t1n_t2f": 0.0019,
-            "t2w_t2f": 0.0021
-        },
-        "LDCT": {"LDCT_HDCT": 0.0097}
-    }
-}
-
-datasets = ['OASIS', 'UCSF', 'UPENN', 'FDG', 'LDCT', 'BraTS']
+# torch.cuda.set_per_process_memory_fraction(0.33, 0)  # Limit to 30% of GPU 0
 
 def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
     print(save_dir)
-    if opt.model == 'pix2pix':
-        task_model.set_requires_grad([task_model.netG,task_model.netD], False)
-    else:
-        task_model.set_requires_grad([task_model.netG_A, task_model.netG_B, task_model.netD_A, task_model.netD_B], False)
+    task_model.set_requires_grad([task_model.netG_A, task_model.netG_B, task_model.netD_A, task_model.netD_B], False)
 
     task_model.eval()
 
     return_layers = opt.return_layers
 
-    # questa parte sotto va modificata
+    # Keep the reconstruction models in evaluation mode.
     for subnets in AENet.AENet:
         subnets.eval()
 
@@ -94,7 +51,7 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
     df = pd.DataFrame(columns=['img_name', 'SSIM', 'MAE', 'PSNR'])
     df_tta = pd.DataFrame(columns=['img_name', 'SSIM', 'MAE', 'PSNR', 'config'])
 
-    # prepara i percorsi di output
+    # Prepare output paths.
     os.makedirs(save_dir, exist_ok=True)
     csv_path_no_tta = os.path.join(save_dir, 'metrics_no_tta.csv')
     csv_path_tta = os.path.join(save_dir, 'metrics_tta.csv')
@@ -114,7 +71,7 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
 
     processed_img_names = set(df_existing_no_tta['img_name'].astype(str)) if 'img_name' in df_existing_no_tta else set()
 
-    # scrive gli header la prima volta
+    # Write the header only once.
     write_header_no_tta = not os.path.exists(csv_path_no_tta)
     write_header_tta = not os.path.exists(csv_path_tta)
 
@@ -127,10 +84,9 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
             opt.return_layers = return_layers
             continue
 
-        # le 3 righe sotto servono perchè non possiamo chiamare la funzione test di base_model
-        # se non le mettessi non potrei fare il test.
+        # These three lines are required because we do not call the base_model test helper here.
         with torch.no_grad():
-            outputs = task_model.forward(return_layers=opt.return_layers)  # passo forward del task model
+            outputs = task_model.forward(return_layers=opt.return_layers)  # forward pass of the task model
 
         task_model.compute_visuals()
         visuals = task_model.get_current_visuals()  # get image results
@@ -142,13 +98,12 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
         ssim_score=calculate_ssim(visuals)
         ssim_list.append(ssim_score)
         
-        index = opt.return_layers[-1]  # prendo l'indice del layer (chiave del dizionario outputs)
-        side_out = outputs[index]  # side_out è l'output del task network   
+        index = opt.return_layers[-1]  # Index of the final feature map in outputs.
+        side_out = outputs[index]  # Output of the task network.
             
-        # use seperate features
-        side_out = side_out
-        ae_out = AENet.AENet[-1](side_out, side_out=False)  # uscita del modello di ricostruzione -> dominio B
-        rec_loss = AENet.AELoss(ae_out, side_out)  # loss dei ricostruttori senza adaptation
+        # Use the final-layer features directly.
+        ae_out = AENet.AENet[-1](side_out, side_out=False)  # Reconstruction-model output in domain B.
+        rec_loss = AENet.AELoss(ae_out, side_out)  # Reconstruction loss without adaptation.
 
         row = {
             'img_name': img_path[0],
@@ -162,7 +117,7 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
             header=write_header_no_tta,
             index=False
         )
-        write_header_no_tta = False  # dopo la prima riga non riscrivere header
+        write_header_no_tta = False
         processed_img_names.add(img_name)
         if np.round(rec_loss.item(),4) > thr:
             used_comb, ssim_score, mae_score, psnr_score, min_loss, _ = TTA_rndm_50(adaptors, opt, task_model, save_dir, data, rec_loss, return_layers=opt.return_layers, psnr_score_no_tta=psnr_score)
@@ -236,24 +191,15 @@ if __name__ == '__main__':
     total_iters = 0                # the total number of training iterations
 
     pattern = r"/TEST_[^/]*/"
-    if opt.model == 'pix2pix':
-        load_path_model = os.path.join(re.sub(pattern, "/", opt.results_dir.replace('_rec_models', "")), 'latest_net_G.pth')
-    else:
-        load_path_model = os.path.join(re.sub(pattern, "/", opt.results_dir.replace('_rec_models', "")), 'latest_net_G_A.pth')
+    load_path_model = os.path.join(re.sub(pattern, "/", opt.results_dir.replace('_rec_models', "")), 'latest_net_G_A.pth')
 
     state_dict_model = torch.load(load_path_model,
-                                  map_location=str(task_model.device))  # dizionario che ha per chiave il nome del layer
+                                  map_location=str(task_model.device))  # State dict for the task model weights.
 
-    if opt.model == 'pix2pix':
-        if isinstance(task_model.netG, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
-            task_model.netG.module.load_state_dict(state_dict_model) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
-        else:
-            task_model.netG.load_state_dict(state_dict_model)
+    if isinstance(task_model.netG_A, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
+        task_model.netG_A.module.load_state_dict(state_dict_model) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
     else:
-        if isinstance(task_model.netG_A, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
-            task_model.netG_A.module.load_state_dict(state_dict_model) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
-        else:
-            task_model.netG_A.load_state_dict(state_dict_model)
+        task_model.netG_A.load_state_dict(state_dict_model)
 
     AENet = AENet(opt)
 
@@ -267,18 +213,16 @@ if __name__ == '__main__':
         load_path_weights = os.path.join(load_path_weights_AE, f'AE_{name}_49.pt')
 
         state_dict = torch.load(load_path_weights, map_location=str(
-            AENet.device))  # dizionario che ha per chiave il nome del layer e per valore i pesi
+            AENet.device))  # State dict containing one entry per layer.
 
-        AENet.AENet[i].load_state_dict(state_dict)  # così carico il dizionario nel modello
+        AENet.AENet[i].load_state_dict(state_dict)  # Load the state dict into the model.
         AENet.set_requires_grad(AENet.AENet[i], False)
     
     adaptors = ANet(opt).cuda()
 
      # --- inferenza ---
-    ds = [d for d in datasets if d in opt.dataroot][0]
-    source_ds = [d for d in datasets if d in opt.checkpoints_dir][0]
-    output_dir = os.path.join(opt.results_dir.replace('_rec_models', '_TTA'), 'TTA_baseline', ds)
+    dataset_name = opt.dataset_name or os.path.basename(os.path.normpath(opt.dataroot))
+    output_dir = os.path.join(opt.results_dir.replace('_rec_models', '_TTA'), 'TTA_baseline', dataset_name)
     adaptors.save_dir=output_dir
     adaptors.save_dir_config = output_dir
-    thr= thresholds[opt.model][source_ds]['_'.join(opt.mri_modalities)]
-    run_inference(task_model, AENet, adaptors, dataset, opt, output_dir, thr)
+    run_inference(task_model, AENet, adaptors, dataset, opt, output_dir, float(opt.tta_threshold))

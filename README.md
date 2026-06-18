@@ -1,19 +1,30 @@
-# Multi-Agent Test-Time Adaptation for Robust 2D Medical Image-to-Image Translation
+# Multi-Agent TTA for 2D Medical Image Translation
 
-Public release of the codebase for the MICCAI 2026 paper on multi-agent TTA.
+Public release of the code used in the MICCAI 2026 paper on multi-agent test-time adaptation.
+
+This repository contains only the two models used in the paper:
+
+- `cyclegan/`
+- `flow_matching/`
+
+The release is trimmed to the scripts needed to train the task model, train the monitoring agent, compute reconstruction loss, and run the three adaptation strategies:
+
+- `baseline`
+- `ema`
+- `rvt`
 
 ## Repository Layout
 
 - `checkpoint/Ap_*`: predictor-agent checkpoints.
-- `checkpoint/monitoring_agent/cyclegan/`: CycleGAN monitoring-agent checkpoints.
-- `checkpoint/monitoring_agent/flow_matching/`: flow-matching monitoring-agent checkpoints.
-- `cyclegan/`: CycleGAN branch.
-- `flow_matching/`: flow-matching branch.
-- `_MICCAI___2026____Extened_TTA.pdf`: paper PDF.
+- `checkpoint/monitoring_agent/cyclegan/`: monitoring-agent checkpoints for the CycleGAN branch.
+- `checkpoint/monitoring_agent/flow_matching/`: monitoring-agent checkpoints for the flow-matching branch.
+- `cyclegan/`: CycleGAN branch code.
+- `flow_matching/`: flow-matching branch code.
+- `_MICCAI___2026____Extened_TTA.pdf`: paper PDF, ignored by git.
 
 ## Public Scripts
 
-CycleGAN:
+### CycleGAN branch
 
 - `train.py`
 - `test.py`
@@ -24,7 +35,7 @@ CycleGAN:
 - `TTA_ema.py`
 - `TTA_rvt.py`
 
-Flow matching:
+### Flow-matching branch
 
 - `train_flow_matching.py`
 - `test_flow_matching.py`
@@ -35,21 +46,30 @@ Flow matching:
 - `TTA_ema.py`
 - `TTA_rvt.py`
 
-Internal helper modules used by the public scripts are kept in place, but the release no longer includes the extra ablation, plotting, single-sample, preprocessing, or statistical-test scripts.
-
-## Setup
-
-- Start from `cyclegan/environment.yml` if you only need the CycleGAN branch.
-- Add the MONAI / generative dependencies required by `flow_matching/` in the same environment if you want both branches.
+Internal helper modules remain in the tree because the public scripts import them directly.
 
 ## Checkpoints
 
-- `Ap` checkpoints are already placed under `checkpoint/`.
-- Monitoring-agent checkpoints are stored under `checkpoint/monitoring_agent/` with one folder per dataset/model pair.
-- For flow matching, `--diff_ckpt` points to the predictor-agent checkpoint folder or prefix expected by the script.
-- For CycleGAN, pass the task-model checkpoint directory and experiment name as expected by the original scripts.
+The repository already includes the checkpoints needed to reproduce the public runs:
+
+- predictor agent
+- monitoring agent for CycleGAN
+- monitoring agent for flow matching
+
+The monitoring-agent checkpoints are organized by model and dataset.
+
+## Setup
+
+Use the CycleGAN environment as the base environment for the `cyclegan/` branch:
+
+```bash
+conda env create -f cyclegan/environment.yml
+```
+
+Then add the dependencies required by `flow_matching/` in the same environment, or manage that branch in a separate environment if you prefer a cleaner split.
 
 ## Notes
 
-- Hardcoded local filesystem paths were removed from the public scripts.
-- The old `rec_model` naming was replaced by `monitoring_agent` in the public entry points.
+- Hardcoded private filesystem paths have been removed from the public scripts.
+- The old `rec_model` naming is now exposed as `monitoring_agent` in the public options.
+- Files related to paired models, colorization, single-image testing, preprocessing, plotting, and statistical tests were removed from the public release.

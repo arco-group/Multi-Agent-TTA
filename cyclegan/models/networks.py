@@ -73,7 +73,7 @@ def init_weights(net, init_type='normal', init_gain=0.02):
         init_type (str) -- the name of an initialization method: normal | xavier | kaiming | orthogonal
         init_gain (float)    -- scaling factor for normal, xavier and orthogonal.
 
-    We use 'normal' in the original pix2pix and CycleGAN paper. But xavier and kaiming might
+    We use 'normal' in the original CycleGAN paper. But xavier and kaiming might
     work better for some applications. Feel free to try yourself.
     """
     def init_func(m):  # define the initialization function
@@ -176,11 +176,9 @@ def define_D(input_nc, ndf, netD, n_layers_D=3, norm='batch', init_type='normal'
     Returns a discriminator
 
     Our current implementation provides three types of discriminators:
-        [basic]: 'PatchGAN' classifier described in the original pix2pix paper.
-        It can classify whether 70×70 overlapping patches are real or fake.
-        Such a patch-level discriminator architecture has fewer parameters
-        than a full-image discriminator and can work on arbitrarily-sized images
-        in a fully convolutional fashion.
+        [basic]: PatchGAN classifier that classifies whether 70×70 overlapping patches are real or fake.
+        Such a patch-level discriminator architecture has fewer parameters than a full-image discriminator
+        and can work on arbitrarily-sized images in a fully convolutional fashion.
 
         [n_layers]: With this mode, you can specify the number of conv layers in the discriminator
         with the parameter <n_layers_D> (default=3 as used in [basic] (PatchGAN).)

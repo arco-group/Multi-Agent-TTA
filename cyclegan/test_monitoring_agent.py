@@ -1,31 +1,4 @@
-"""General-purpose test script for image-to-image translation.
-
-Once you have trained your model with train.py, you can use this script to test the model.
-It will load a saved model from '--checkpoints_dir' and save the results to '--results_dir'.
-
-It first creates model and dataset given the option. It will hard-code some parameters.
-It then runs inference for '--num_test' images and save results to an HTML file.
-
-Example (You need to train models first or download pre-trained models from our website):
-    Test a CycleGAN model (both sides):
-        python test.py --dataroot ./datasets/maps --name maps_cyclegan --model cycle_gan
-
-    Test a CycleGAN model (one side only):
-        python test.py --dataroot datasets/horse2zebra/testA --name horse2zebra_pretrained --model test --no_dropout
-
-    The option '--model test' is used for generating CycleGAN results only for one side.
-    This option will automatically set '--dataset_mode single', which only loads the images from one set.
-    On the contrary, using '--model cycle_gan' requires loading and generating results in both directions,
-    which is sometimes unnecessary. The results will be saved at ./results/.
-    Use '--results_dir <directory_path_to_save_result>' to specify the results directory.
-
-    Test a pix2pix model:
-        python test.py --dataroot ./datasets/facades --name facades_pix2pix --model pix2pix --direction BtoA
-
-See options/base_options.py and options/test_options.py for more test options.
-See training and test tips at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/tips.md
-See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/qa.md
-"""
+"""Test script for the CycleGAN monitoring-agent branch."""
 import os
 import pandas as pd
 from options.test_options import TestOptions
@@ -65,24 +38,15 @@ if __name__ == '__main__':
 
 
     pattern = r"/TEST_[^/]*/"
-    if opt.model == 'pix2pix':
-        load_path_model = os.path.join(re.sub(pattern, "/", opt.results_dir.replace('_rec_models', "")), 'latest_net_G.pth')
-    else:
-        load_path_model = os.path.join(re.sub(pattern, "/", opt.results_dir.replace('_rec_models', "")), 'latest_net_G_A.pth')
+    load_path_model = os.path.join(re.sub(pattern, "/", opt.results_dir.replace('_rec_models', "")), 'latest_net_G_A.pth')
 
     state_dict_model = torch.load(load_path_model,
-                                  map_location=str(model.device))  # dizionario che ha per chiave il nome del layer
+                                  map_location=str(model.device))  # State dict for the task model weights.
 
-    if opt.model == 'pix2pix':
-        if isinstance(model.netG, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
-            model.netG.module.load_state_dict(state_dict_model) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
-        else:
-            model.netG.load_state_dict(state_dict_model)
+    if isinstance(model.netG_A, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
+        model.netG_A.module.load_state_dict(state_dict_model) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
     else:
-        if isinstance(model.netG_A, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
-            model.netG_A.module.load_state_dict(state_dict_model) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
-        else:
-            model.netG_A.load_state_dict(state_dict_model)
+        model.netG_A.load_state_dict(state_dict_model)
 
     AENet = AENet(opt)
 
@@ -91,13 +55,12 @@ if __name__ == '__main__':
     load_path_weights_AE_output = os.path.join(re.sub(pattern, "/", opt.results_dir), 'epoch49/AE_final_output_49.pt')
 
     state_dict_input = torch.load(load_path_weights_AE_input, map_location=str(
-        AENet.device))  # dizionario che ha per chiave il nome del layer e per valore i pesi
+        AENet.device))  # State dict containing one entry per layer.
    
     state_dict_output = torch.load(load_path_weights_AE_output,
-                                   map_location=str(AENet.device))  # dizionarioo che ha per chiave il nome del layer
+                                   map_location=str(AENet.device))  # State dict for the output autoencoder.
 
-    # TODO: corregere il caricamento dei pesi perchè ora li dobb caricare in pix2pix
-    AENet.AENet[0].load_state_dict(state_dict_input)  # così carico il dizionario nel modello
+    AENet.AENet[0].load_state_dict(state_dict_input)  # Load the state dict into the model.
     AENet.AENet[-1].load_state_dict(state_dict_output)
 
     # initialize logger
@@ -114,11 +77,9 @@ if __name__ == '__main__':
     print('creating web directory', web_dir)
     webpage = html.HTML(web_dir, 'Experiment = %s, Phase = %s, Epoch = %s' % (opt.name, opt.phase, opt.epoch))
     # test with eval mode. This only affects layers like batchnorm and dropout.
-    # For [pix2pix]: we use batchnorm and dropout in the original pix2pix. You can experiment it with and without eval() mode.
-    # For [CycleGAN]: It should not affect CycleGAN as CycleGAN uses instancenorm without dropout.
     if opt.eval:
         model.eval()
-        for net in AENet.AENet:  # metto l'autoencoder in modalità evaluation
+        for net in AENet.AENet:  # Put the autoencoder in evaluation mode.
             net.eval()
 
     mse_i = []
@@ -134,14 +95,14 @@ if __name__ == '__main__':
     for i, data in tqdm(enumerate(dataset)):
         if i >= opt.num_test:  # only apply our model to opt.num_test images.
             break
-        model.set_input(data)  # unpack data from data loader
-        outputs = model.forward(return_layers=opt.return_layers)  # passo forward del task model
+        model.set_input(data)  # Unpack data from the dataloader.
+        outputs = model.forward(return_layers=opt.return_layers)  # Forward pass of the task model.
         input_real = outputs[
-            opt.return_layers[0]]  # return layer, nel forward del task model, mi dice dove si attaccano
-        # AE (è realA)
-        output_real = outputs[opt.return_layers[-1]]  # fake B
+            opt.return_layers[0]]  # Return layer used by the task model.
+        # AE input corresponds to real A.
+        output_real = outputs[opt.return_layers[-1]]  # Fake B.
 
-        input_rec = AENet.AENet[0](input_real, side_out=False).clip(-1,1)  # diamo output task model ad autoencoder
+        input_rec = AENet.AENet[0](input_real, side_out=False).clip(-1,1)  # Feed the task-model output to the autoencoder.
         output_rec = AENet.AENet[-1](output_real, side_out=False).clip(-1,1)
 
         # visuals = AENet.get_current_visuals()  # get image results
@@ -151,7 +112,7 @@ if __name__ == '__main__':
         visuals_taskmodel = OrderedDict()
         visuals_taskmodel['real_B'] = data['B'].to('cuda')
         visuals_taskmodel['fake_B'] = output_real
-        mae_score = calcola_mse(visuals_taskmodel)  # dovrebbe essere per ogni batch
+        mae_score = calcola_mse(visuals_taskmodel)  # Computed per batch.
         psnr_score = calculate_psnr(visuals_taskmodel)
         ssim_score = calculate_ssim(visuals_taskmodel)
         print(mae_score)
@@ -159,21 +120,21 @@ if __name__ == '__main__':
         print(ssim_score)
         """
 
-        # Creo due diziomnari perfhè voglio valiutare le performance di ricostruziome di 2 AE:
-        # il primo, visual_input ha come real_B l'input (real A) e come fake_B l'img ricostruita da AE_0
+        # Create two dictionaries to evaluate the reconstruction performance of the two autoencoders.
+        # The first, visual_input, uses real_A as real_B and the reconstruction from AE_0 as fake_B.
         visuals_input = OrderedDict()
         visuals_input['real_B'] = input_real
         visuals_input['fake_B'] = input_rec
 
-        # il secondo, visual_output ha come real_B lp'immagine generata dalla cycle_gan del dominio target (fake B)
-        # e come fake_B l'img ricostruita da AE_3
+        # The second, visual_output, uses the CycleGAN target-domain output as real_B
+        # and the reconstruction from AE_3 as fake_B.
         visuals_output = OrderedDict()
         visuals_output['real_B'] = output_real
         visuals_output['fake_B'] = output_rec
 
-        # TODO: per chiamare le funzioni che calcolano metriche, serve un dizionario
-        # AE 0 che lavora su input
-        mae_score = calcola_mse(visuals_input)  # dovrebbe essere per ogni batch
+        # TODO: use a dictionary when calling the metric functions.
+        # AE 0 operates on the input branch.
+        mae_score = calcola_mse(visuals_input)  # Computed per batch.
         mse_i.append(mae_score)
         psnr_score = calculate_psnr(visuals_input)
         psnr_i.append(psnr_score)
@@ -185,7 +146,7 @@ if __name__ == '__main__':
         df_i = pd.concat([df_i, df_new], ignore_index=True)
 
         # AE 8 che lavora su output
-        mae_score = calcola_mse(visuals_output)  # dovrebbe essere per ogni batch
+        mae_score = calcola_mse(visuals_output)  # Computed per batch.
         mse_o.append(mae_score)
         psnr_score = calculate_psnr(visuals_output)
         psnr_o.append(psnr_score)
@@ -248,5 +209,3 @@ if __name__ == '__main__':
 
     df_i.to_csv(os.path.join(opt.results_dir, 'input_AE_0.csv'), index=False)  # salva il dataframe in un file csv
     df_o.to_csv(os.path.join(opt.results_dir, 'output_AE_8.csv'), index=False)  # salva il dataframe in un file csv
-
-

@@ -8,7 +8,6 @@
     -- <modify_commandline_options>:    (optionally) add dataset-specific options and set default options.
 
 Now you can use the dataset class by specifying flag '--dataset_mode dummy'.
-See our template dataset class 'template_dataset.py' for more details.
 """
 import importlib
 import torch.utils.data

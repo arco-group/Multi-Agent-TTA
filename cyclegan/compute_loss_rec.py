@@ -31,7 +31,7 @@ from pathlib import Path
 #torch.cuda.set_per_process_memory_fraction(0.25, 0)
 
 
-torch.manual_seed(0)  # garantisce la riproducibilità
+torch.manual_seed(0)  # Ensure reproducibility.
 torch.cuda.manual_seed(0)
 np.random.seed(0)
 from options.base_options import BaseOptions
@@ -81,14 +81,11 @@ def plot_losses(loss_tot, num_epochs, path, j):  # j è l'indice del ciclo sulle
 
 def compute_loss_rec(opt, task_model, rec_models=None, stable=False, AENet=None, save_every=100):
 
-    if opt.model == 'pix2pix':
-        task_model.set_requires_grad([task_model.netG,task_model.netD], False)
-    else:
-        task_model.set_requires_grad([task_model.netG_A, task_model.netG_B, task_model.netD_A, task_model.netD_B], False)
+    task_model.set_requires_grad([task_model.netG_A, task_model.netG_B, task_model.netD_A, task_model.netD_B], False)
 
     task_model.eval()
 
-    # questa parte sotto va modificata
+    # Keep the reconstruction models in evaluation mode.
     for subnets in rec_models:
         subnets.eval()
 
@@ -101,7 +98,7 @@ def compute_loss_rec(opt, task_model, rec_models=None, stable=False, AENet=None,
 
     for j, batch in enumerate(tqdm(dataset)):
         task_model.set_input(batch)
-        outputs = task_model.forward(return_layers=opt.return_layers)  # passo forward del task model
+        outputs = task_model.forward(return_layers=opt.return_layers)  # Forward pass of the task model.
         task_model.compute_visuals()
         visuals = task_model.get_current_visuals()  # get image results
         img_path = task_model.get_image_paths()
@@ -111,18 +108,18 @@ def compute_loss_rec(opt, task_model, rec_models=None, stable=False, AENet=None,
             ignore_index=True) 
         
         for i in range(len(rec_models)):
-            index = opt.return_layers[i]  # prendo l'indice del layer (chiave del dizionario outputs)
-            side_out = outputs[index]  # side_out è l'output del task network
+            index = opt.return_layers[i]  # Index of the feature map in outputs.
+            side_out = outputs[index]  # Output of the task network.
                 
             if len(AENet.AENetMatch[i]) == 2:
                 side_out = torch.cat([side_out[0], side_out[1]], dim=1)
             else:
-                # use seperate features
+                # Use separate features.
                 side_out = side_out
-            ae_out = AENet.AENet[i](side_out, side_out=False)  # uscita del modello di ricostruzione -> dominio B
-            rec_loss = weights[i] * AENet.AELoss(ae_out, side_out)  # loss dei ricostruttori senza adaptation sss
+            ae_out = AENet.AENet[i](side_out, side_out=False)  # Reconstruction-model output in domain B.
+            rec_loss = weights[i] * AENet.AELoss(ae_out, side_out)  # Reconstruction loss without adaptation.
             loss_rec.loc[j, f'loss_AE_{i}'] = rec_loss.data.item()
-        # salvo periodicamente il csv loss_rec per non perdere tutto in caso di stop del job
+        # Save the CSV periodically so progress is not lost if the job stops.
         if (j + 1) % save_every == 0:
             loss_rec.to_csv(os.path.join(opt.results_dir, 'loss_rec.csv'), index=False)
 
@@ -178,44 +175,28 @@ if __name__ == '__main__':
 
         load_path_weights = resolve_checkpoint_path(load_path_weights, opt, layer_name=layer, model_kind='ae')
         state_dict = torch.load(load_path_weights, map_location=str(
-            AENet.device))  # dizionario che ha per chiave il nome del layer e per valore i pesi
+            AENet.device))  # State dict containing one entry per layer.
 
-        AENet.AENet[i].load_state_dict(state_dict)  # così carico il dizionario nel modello
+        AENet.AENet[i].load_state_dict(state_dict)  # Load the state dict into the model.
         AENet.set_requires_grad(AENet.AENet[i], False)
 
     rec_models = AENet.AENet
     
     pattern_2 = r"_rec_models/rec_loss_[^/]*/"
 
-    if opt.model == 'pix2pix':
-        #load_path_model = os.path.join(opt.results_dir.replace('_rec_models/rec_loss', ""), 'latest_net_G.pth')
-        load_path_model = os.path.join(re.sub(pattern_2, "/", opt.results_dir), 'latest_net_G.pth')
-    else:
-        #load_path_model = os.path.join(opt.results_dir.replace('_rec_models/rec_loss', ""), 'latest_net_G_A.pth')
-        load_path_model = os.path.join(re.sub(pattern_2, "/", opt.results_dir), 'latest_net_G_A.pth')
+    load_path_model = os.path.join(re.sub(pattern_2, "/", opt.results_dir), 'latest_net_G_A.pth')
 
     
     load_path_model = resolve_checkpoint_path(load_path_model, opt, model_kind='g')
     state_dict = torch.load(load_path_model,
-                            map_location=str(task_model.device))  # dizionarioo che ha per chiave il nome del layer
+                            map_location=str(task_model.device))  # State dict for the task model weights.
     
     
-    if opt.model == 'pix2pix':
-        if isinstance(task_model.netG, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
-            task_model.netG.module.load_state_dict(state_dict) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
-        else:
-            task_model.netG.load_state_dict(state_dict)
+    if isinstance(task_model.netG_A, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
+        task_model.netG_A.module.load_state_dict(state_dict) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
     else:
-        if isinstance(task_model.netG_A, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
-            task_model.netG_A.module.load_state_dict(state_dict) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
-        else:
-            task_model.netG_A.load_state_dict(state_dict)
+        task_model.netG_A.load_state_dict(state_dict)
 
     
-    # Carico i pesi del blocco di ricostruzione
+    # Load the reconstruction block weights.
     loss_list = compute_loss_rec(opt, task_model, rec_models, stable=False, AENet=AENet)  # adaptor
-
-
-
-
-

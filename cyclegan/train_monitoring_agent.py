@@ -15,7 +15,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 
-torch.manual_seed(42)  # garantisce la riproducibilità
+torch.manual_seed(42)  # Ensure reproducibility.
 torch.cuda.manual_seed(42)
 from options.base_options import BaseOptions
 from tqdm import tqdm
@@ -59,7 +59,7 @@ def save_images(real_image, reconstructed_image, epoch, path, name, batch_size):
         plt.imshow(real_image, cmap='gray')
         plt.subplot(1, 2, 2)
         plt.imshow(reconstructed_image, cmap='gray')
-        # Crea directory se non esiste
+        # Create the directory if it does not exist.
         os.makedirs(path, exist_ok=True)
         plt.savefig(f'{path}/{name}_epoch_{epoch}.png')
 
@@ -83,16 +83,13 @@ def plot_ae_losses(loss_list, num_epochs, path, name):
 
 def training_AE(AENet, task_model, dataset, opt, AE_to_train='all'):
     # AE=AENet.AENet[AE_to_train]
-    if opt.model == 'pix2pix':
-        task_model.set_requires_grad([task_model.netG, task_model.netD], False)
-    else:
-        task_model.set_requires_grad([task_model.netG_A, task_model.netG_B, task_model.netD_A, task_model.netD_B], False)
-    # il task model è freezato durante addestramento di AE (vanno freezati i singoli pezzi perchè nel codice base model, è scritto così.
+    task_model.set_requires_grad([task_model.netG_A, task_model.netG_B, task_model.netD_A, task_model.netD_B], False)
+    # Freeze the task model while training the monitoring agent.
     AENet.set_requires_grad(AENet.AENet, True)  # verranno trainati solo AE
     # il .AENet contiene la lista dei 4 AE che devono essere trainati
 
-    task_model.eval()  # metto il task model in modalità inferenza
-    AENet.train()  # metto l'autoencoder in modalità trainingc
+    task_model.eval()  # Put the task model in inference mode.
+    AENet.train()  # Put the autoencoder in training mode.
 
     if AE_to_train == 'all':
         ae_indices = range(len(AENet.AENet))
@@ -104,9 +101,9 @@ def training_AE(AENet, task_model, dataset, opt, AE_to_train='all'):
     loss_list_batch = {i: [] for i in ae_indices}
 
     for epoch in range(opt.total_epoch):
-        for batch in tqdm(dataset.dataloader): # qui cicliamo sul dataloader in modo da avere le batch
+        for batch in tqdm(dataset.dataloader): # Iterate over the dataloader to build batches.
             task_model.set_input(batch)  # imposta il modello
-            outputs = task_model.forward(return_layers=opt.return_layers)  # passo forward del task model
+            outputs = task_model.forward(return_layers=opt.return_layers)  # Forward pass of the task model.
 
             for i in ae_indices:
                 ae = AENet.AENet[i]
@@ -176,26 +173,15 @@ if __name__ == '__main__':
     dataset = create_dataset(opt)  # ci da il dataloader
     AENet = AENet(opt)  # creo l'autoencoder
   
-    #NB: ricorda che la p2p non ha net.G_a ma solo net.G
-    if opt.model == 'pix2pix':
-        load_path = os.path.join(opt.checkpoints_dir.replace('_rec_models', ""), opt.name,'latest_net_G.pth')
-    else:
-        load_path = os.path.join(opt.checkpoints_dir.replace('_rec_models', ""), opt.name,'latest_net_G_A.pth')
+    # Load the CycleGAN task-model checkpoint.
+    load_path = os.path.join(opt.checkpoints_dir.replace('_rec_models', ""), opt.name,'latest_net_G_A.pth')
         
-    state_dict = torch.load(load_path, map_location=str(task_model.device)) # dizionario che ha per chiave il nome del layer
-    # e per valore i pesi
+    state_dict = torch.load(load_path, map_location=str(task_model.device))  # State dict for the task model weights.
 
-    if opt.model == 'pix2pix':
-        if isinstance(task_model.netG, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
-            task_model.netG.module.load_state_dict(state_dict) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
-        else:
-            task_model.netG.load_state_dict(state_dict)
+    if isinstance(task_model.netG_A, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
+        task_model.netG_A.module.load_state_dict(state_dict) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
     else:
-        if isinstance(task_model.netG_A, torch.nn.DataParallel): # se parallelizzo il modello (uso più di 1 gpu)
-            task_model.netG_A.module.load_state_dict(state_dict) # parallelizzo ogni rete sulla gpu ( T model ha 4 reti)
-        else:
-            task_model.netG_A.load_state_dict(state_dict)
+        task_model.netG_A.load_state_dict(state_dict)
 
     # AE_to_train = int(opt.AE_to_train)
     loss_list_epoch, loss_list = training_AE(AENet, task_model, dataset, opt, opt.AE_to_train)
-

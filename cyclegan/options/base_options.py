@@ -25,7 +25,7 @@ class BaseOptions():
         parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
         # model parameters
-        parser.add_argument('--model', type=str, default='cycle_gan', help='chooses which model to use. [cycle_gan | pix2pix | test | colorization]')
+        parser.add_argument('--model', type=str, default='cycle_gan', help='chooses which model to use. [cycle_gan]')
         parser.add_argument('--input_nc', type=int, default=3, help='# of input image channels: 3 for RGB and 1 for grayscale')
         parser.add_argument('--output_nc', type=int, default=3, help='# of output image channels: 3 for RGB and 1 for grayscale')
         parser.add_argument('--ngf', type=int, default=64, help='# of gen filters in the last conv layer')
@@ -38,7 +38,7 @@ class BaseOptions():
         parser.add_argument('--init_gain', type=float, default=0.02, help='scaling factor for normal, xavier and orthogonal.')
         parser.add_argument('--no_dropout', action='store_true', help='no dropout for the generator')
         # dataset parameters
-        parser.add_argument('--dataset_mode', type=str, default='unaligned', help='chooses how datasets are loaded. [unaligned | aligned | single | colorization]')
+        parser.add_argument('--dataset_mode', type=str, default='unaligned', help='chooses how datasets are loaded. [unaligned]')
         parser.add_argument('--mri_modalities', default=["t1n", "t1c", "t2w", "t2f"], help='which MRI modality to use', nargs='+', type=str)
         parser.add_argument('--direction', type=str, default='AtoB', help='AtoB or BtoA')
         parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
@@ -57,7 +57,7 @@ class BaseOptions():
         parser.add_argument('--suffix', default='', type=str, help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{netG}_size{load_size}')
         # wandb parameters
         parser.add_argument('--use_wandb', action='store_true', help='if specified, then init wandb logging')
-        parser.add_argument('--wandb_project_name', type=str, default='CycleGAN-and-pix2pix', help='specify wandb project name')
+        parser.add_argument('--wandb_project_name', type=str, default='Multi-Agent-TTA', help='specify wandb project name')
         # Added by Irene Iele
         parser.add_argument('--slice_range', type=int, nargs=2, default=[0, 999],help='Range of slice indices to include, e.g., --slice_range 30 128')
         parser.add_argument('--tnet_dim', type=list, default=[1,64,128,256,256,256,256,256,1], help=' punti in cui si attaccheranno AE')
@@ -83,8 +83,8 @@ class BaseOptions():
                             help='orthogonal weights in training ANet')
         parser.add_argument('--total_epoch', dest='total_epoch', default=100, type=int,
                             help='total numer of epochs for training AE')
-        parser.add_argument('--rec_model', type=str, default='cycle_gan_paired',
-                            help='chooses which model to use. [cycle_gan_paired | pix2pix_rec |pix2pix | test | colorization | AENet]')
+        parser.add_argument('--rec_model', type=str, default='monitoring_agent',
+                            help='chooses which reconstruction model to use. [monitoring_agent | AENet]')
         parser.add_argument('--rec_input_nc', type=int, default=3,
                             help='# of input image channels: 3 for RGB and 1 for grayscale')
         parser.add_argument('--rec_output_nc', type=int, default=3,
@@ -109,6 +109,8 @@ class BaseOptions():
         parser.add_argument('--data_phase', type=str, default=None, help='train or test for dataset selection')
         parser.add_argument('--index', type=int, default=None, help='Job index for parallel runs (e.g., 0,1,2...). If None, run on full dataset.')
         parser.add_argument('--chunk_size', type=int, default=1000, help='Number of samples per job when --index is set.')
+        parser.add_argument('--dataset_name', type=str, default=None, help='explicit dataset name used for output folders')
+        parser.add_argument('--tta_threshold', type=float, default=0.0, help='reconstruction-loss threshold that triggers TTA')
 
 
         self.initialized = True

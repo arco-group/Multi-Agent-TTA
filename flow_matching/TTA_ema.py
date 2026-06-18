@@ -15,7 +15,7 @@ import re
 import time
 import argparse
 from models.adaptor_3 import DTTAnorm, ANet
-torch.manual_seed(0)  # garantisce la riproducibilità
+torch.manual_seed(0)  # Ensure reproducibility.
 torch.cuda.manual_seed(0)
 np.random.seed(0)
 from tqdm import tqdm
@@ -29,25 +29,13 @@ from TTA import TTA_rndm_50
 from train_monitoring_agent import compute_tnet_dim
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr, structural_similarity as compute_ssim
 
-#torch.cuda.set_per_process_memory_fraction(0.33, 0)  # Limit to 30% of GPU 0
+# torch.cuda.set_per_process_memory_fraction(0.33, 0)  # Limit to 30% of GPU 0
 
-torch.manual_seed(42)  # garantisce la riproducibilità
+torch.manual_seed(42)  # Ensure reproducibility.
 torch.cuda.manual_seed(42)
 set_determinism(0)
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 NUM_GPUS = torch.cuda.device_count()
-thresholds = {
-    "flow_matching": {
-        #"LDCT": {"LDCT_HDCT": 0},
-        "LDCT": {"LDCT_HDCT": 0.0038},
-        "BraTS": {"t1n_t2w": 0.0024},
-        #"BraTS": {"t1n_t2w": 0},
-
-}
-}
-
-datasets = ['OASIS', 'UCSF', 'UPENN', 'FDG', 'LDCT', 'BraTS']
-
 def extract_threshold(loss_history, sample_size, percentile, with_replacement=True):
     if not loss_history:
         return None
@@ -66,7 +54,7 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
 
     return_layers = opt.return_layers
 
-    # questa parte sotto va modificata
+    # Keep the reconstruction models in evaluation mode.
     for subnets in AENet.AENet:
         subnets.eval()
 
@@ -114,7 +102,7 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
     write_header_tta = not os.path.exists(csv_path_tta)
 
     for idx, data in tqdm(enumerate(dataset)):
-        img_path = data['A_paths']     # get image paths
+        img_path = data['A_paths']     # Get image paths.
         img_name = img_path
         if img_name in processed_img_names:
             opt.return_layers = return_layers
@@ -146,7 +134,7 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
             total=min(len(scheduler.timesteps), len(next_timesteps)),
             desc="Flow Matching Sampling",
         )
-        # Step fino al n-1 del Task Model Iterativo
+        # Run the task model up to the penultimate timestep.
         with torch.no_grad():
             for t, next_t in zip(scheduler.timesteps[:-1], next_timesteps[:-1]):
                 t_tensor = torch.tensor([t], device=DEVICE).long()
@@ -156,7 +144,7 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
 
             x_minus_one = x
 
-            # Last timestep for feature extraction
+            # Use the last timestep for feature extraction.
             t = scheduler.timesteps[-1]
             next_t = next_timesteps[-1]
             t_tensor = torch.tensor([t], device=DEVICE).long()
@@ -166,7 +154,7 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
             )
             x, _ = scheduler.step(predicted_velocity, t, x, next_t)
 
-            # Patch missing entries in outputs
+            # Patch missing entries in outputs.
             outputs[opt.return_layers[-1]] = x
             outputs[opt.return_layers[0]] = outputs[opt.return_layers[0]][:, 1, :, :].unsqueeze(1)
 
@@ -179,15 +167,10 @@ def run_inference(task_model, AENet, adaptors, dataset, opt, save_dir, thr=0):
         ssim_score = compute_ssim(gt_array[mask], pred_array[mask], data_range=gt_array.max() - gt_array.min())
         mae_score = calcola_mae(torch.Tensor(gt_array), torch.Tensor(pred_array)).item()
 
-        index = opt.return_layers[-1]  # prendo l'indice del layer (chiave del dizionario outputs)
-        side_out = outputs[index]  # side_out è l'output del task network   
-            
-        # use seperate features
-        side_out = side_out
-        ae_out = AENet.AENet[-1](side_out, side_out=False)  # uscita del modello di ricostruzione -> dominio B
-        rec_loss = AENet.AELoss(ae_out, side_out)  # loss dei ricostruttori senza adaptation
-        ae_out = AENet.AENet[-1](side_out, side_out=False)  # uscita del modello di ricostruzione -> dominio B
-        rec_loss = AENet.AELoss(ae_out, side_out)  # loss dei ricostruttori senza adaptation
+        index = opt.return_layers[-1]  # Index of the final feature map in outputs.
+        side_out = outputs[index]  # Output of the task network.
+        ae_out = AENet.AENet[-1](side_out, side_out=False)  # Reconstruction-model output in domain B.
+        rec_loss = AENet.AELoss(ae_out, side_out)  # Reconstruction loss without adaptation.
         rec_loss_value = float(rec_loss.item())
 
         threshold_before = current_threshold
@@ -348,6 +331,8 @@ if __name__ == '__main__':
     parser.add_argument('--tta_ema_percentile', type=float, default=95.0, help='percentile used to derive the percentile target during TTA_ema updates')
     parser.add_argument('--tta_ema_alpha', type=float, default=0.2, help='EMA smoothing factor applied when updating the threshold in TTA_ema')
     parser.add_argument('--tta_ema_loss_source', type=str, default='post', choices=['pre', 'post'], help='which loss to use for threshold updates when TTA_ema is performed (pre or post adaptation)')
+    parser.add_argument('--dataset_name', type=str, default=None, help='explicit dataset name used for output folders')
+    parser.add_argument('--tta_threshold', type=float, default=0.0, help='reconstruction-loss threshold that triggers TTA')
 
     parser.add_argument('--input_range_01', action="store_true", help='If set, keep input in [0,1] (no [-1,1] remap)')
 
@@ -393,18 +378,16 @@ if __name__ == '__main__':
 
         load_path_weights = os.path.join(load_path_weights_AE, f'AE_{name}_49.pt')
 
-        state_dict = torch.load(load_path_weights, map_location=str(AENet.device))  # dizionario che ha per chiave il nome del layer e per valore i pesi
+        state_dict = torch.load(load_path_weights, map_location=str(AENet.device))  # State dict containing one entry per layer.
 
-        AENet.AENet[i].load_state_dict(state_dict['AE_weights'])  # così carico il dizionario nel modello
+        AENet.AENet[i].load_state_dict(state_dict['AE_weights'])  # Load the state dict into the model.
         AENet.set_requires_grad(AENet.AENet[i], False)
     
     adaptors = ANet(opt).cuda()
 
      # --- inferenza ---
-    ds = [d for d in datasets if d in opt.dataroot][0]
-    source_ds = [d for d in datasets if d in opt.checkpoints_dir][0]
-    output_dir = os.path.join(opt.results_dir.replace('_rec_models', '_TTA'), 'TTA_ema_1step_all_rec', ds)
+    dataset_name = opt.dataset_name or os.path.basename(os.path.normpath(opt.dataroot))
+    output_dir = os.path.join(opt.results_dir.replace('_rec_models', '_TTA'), 'TTA_ema_1step_all_rec', dataset_name)
     adaptors.save_dir=output_dir
     adaptors.save_dir_config = output_dir
-    thr = thresholds[opt.model][source_ds]['_'.join(opt.mri_modalities)]
-    run_inference(task_model, AENet, adaptors, dataset, opt, output_dir, thr)
+    run_inference(task_model, AENet, adaptors, dataset, opt, output_dir, float(opt.tta_threshold))
