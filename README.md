@@ -21,7 +21,6 @@ The release is trimmed to the scripts needed to train the task model, train the 
 - `checkpoint/monitoring_agent/flow_matching/`: monitoring-agent checkpoints for the flow-matching branch.
 - `cyclegan/`: CycleGAN branch code.
 - `flow_matching/`: flow-matching branch code.
-- `_MICCAI___2026____Extened_TTA.pdf`: paper PDF, ignored by git.
 
 ## Public Scripts
 
