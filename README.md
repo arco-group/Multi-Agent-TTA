@@ -15,6 +15,8 @@ Health Sciences
 
 # Overview
 Public release of the code used in the MICCAI 2026 paper on Multi-Agent Test-Time Adaptation for 2D Medical Image Translation.
+
+**Paper:** [Multi-Agent Test-Time Adaptation for 2D Medical Image Translation (MICCAI 2026)](https://papers.miccai.org/miccai-2026/paper/2376_paper.pdf)
 <img width="937" height="397" alt="method_tta_v2_page-0001" src="https://github.com/user-attachments/assets/ad22b910-aae6-40f9-9888-b11395210030" />
 </div>
 
